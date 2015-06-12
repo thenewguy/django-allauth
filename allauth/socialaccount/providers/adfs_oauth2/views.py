@@ -4,7 +4,14 @@ from allauth.socialaccount.providers.oauth2.views import (OAuth2Adapter,
 from django.core.exceptions import ImproperlyConfigured
 from .provider import ADFSOAuth2Provider
 from urlparse import urlunsplit
-import jwt
+
+try:
+    import jwt
+except ImportError:
+    JWT_AVAILABLE = False
+    import json
+else:
+    JWT_AVAILABLE = True
 
 class ADFSOAuth2Adapter(OAuth2Adapter):
     provider_id = ADFSOAuth2Provider.id
@@ -48,7 +55,18 @@ class ADFSOAuth2Adapter(OAuth2Adapter):
         return self.construct_redirect_url("/adfs/oauth2/authorize")
 
     def complete_login(self, request, app, token, **kwargs):
-        payload = jwt.decode(token.token, verify=False)
+        verify_token = self.get_provider().get_settings().get("verify_token", True)
+        
+        if JWT_AVAILABLE:
+            payload = jwt.decode(token.token, verify=verify_token)
+            
+        else:
+            if verify_token:
+                raise ImproperlyConfigured("ADFS OAuth2 cannot verify tokens without the `PyJWT` and `cryptography` packages.  If you're system doesn't allow installing `cryptography` like on Google App Engine, you can install `PyCrypto` for RSA signatures and `ecdsa` for ECDSA signatures.  It is not recommended to disable token verification.  However, it can be disabled by setting 'verify_token' to False.")
+            
+            encoded_data = token.token.split(".")[1]
+            data = encoded_data.decode("base64")
+            payload = json.loads(data)
         
         return self.get_provider().sociallogin_from_response(
             request,
