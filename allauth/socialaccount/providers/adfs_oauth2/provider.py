@@ -4,10 +4,8 @@ from allauth.socialaccount.providers.oauth2.provider import OAuth2Provider
 from allauth.account.models import EmailAddress
 from uuid import UUID
 
-
 class ADFSOAuth2Account(ProviderAccount):
     pass
-
 
 class ADFSOAuth2Provider(OAuth2Provider):
     id = 'adfs_oauth2'
