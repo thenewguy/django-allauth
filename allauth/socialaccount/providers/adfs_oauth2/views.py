@@ -58,6 +58,16 @@ class ADFSOAuth2Adapter(OAuth2Adapter):
                 # the signature is assumed to be valid because the
                 # token was retrieved directly from adfs via https
                 kwargs["options"] = {'verify_signature': False}
+                
+                auth_params = self.get_required_setting("AUTH_PARAMS")
+                
+                try:
+                    kwargs["audience"] = "microsoft:identityserver:%s" % auth_params["resource"]
+                except KeyError:
+                    raise ImproperlyConfigured("ADFS OAuth2 AUTH_PARAMS setting 'resource' must be specified.")
+                
+                kwargs["leeway"] = self.get_provider().get_settings().get("time_validation_leeway", 0)
+                
             payload = jwt.decode(token.token, **kwargs)
             
         else:
