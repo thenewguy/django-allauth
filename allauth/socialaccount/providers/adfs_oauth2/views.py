@@ -9,25 +9,25 @@ import jwt
 class ADFSOAuth2Adapter(OAuth2Adapter):
     provider_id = ADFSOAuth2Provider.id
     
+    def get_required_setting(self, key):
+        value = self.get_provider().get_settings().get(key, "")
+        if not value:
+            raise ImproperlyConfigured("ADFS OAuth2 provider setting '%s' must be specified." % key)
+        return value
+    
     @property
     def scheme(self):
         """
             i.e. 'http' or 'https'
         """
-        base = self.get_provider().get_settings().get("scheme", "")
-        if not base:
-            raise ImproperlyConfigured("ADFS 'scheme' must be specified")
-        return base
+        return self.get_required_setting("scheme")
     
     @property
     def host(self):
         """
-            i.e. sso.internal.example.com or sso.example.com:443
+            e.g. sso.internal.example.com or sso.example.com:8443
         """
-        base = self.get_provider().get_settings().get("host", "")
-        if not base:
-            raise ImproperlyConfigured("ADFS 'host' must be specified")
-        return base
+        return self.get_required_setting("host")
     
     def construct_redirect_url(self, path):
         parts = (
