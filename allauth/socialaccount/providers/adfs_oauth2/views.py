@@ -6,10 +6,8 @@ from .provider import ADFSOAuth2Provider
 from urlparse import urlunsplit
 import jwt
 
-
 class ADFSOAuth2Adapter(OAuth2Adapter):
     provider_id = ADFSOAuth2Provider.id
-    
     
     @property
     def scheme(self):
@@ -56,7 +54,6 @@ class ADFSOAuth2Adapter(OAuth2Adapter):
             request,
             payload
         )
-
 
 oauth_login = OAuth2LoginView.adapter_view(ADFSOAuth2Adapter)
 oauth_callback = OAuth2CallbackView.adapter_view(ADFSOAuth2Adapter)
