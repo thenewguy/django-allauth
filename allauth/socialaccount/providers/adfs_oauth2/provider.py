@@ -9,9 +9,12 @@ class ADFSOAuth2Account(ProviderAccount):
 
 class ADFSOAuth2Provider(OAuth2Provider):
     id = 'adfs_oauth2'
-    name = 'ADFS Oauth2'
     package = 'allauth.socialaccount.providers.adfs_oauth2'
     account_class = ADFSOAuth2Account
+    
+    @property
+    def name(self):
+        return self.get_settings().get("name", "ADFS Oauth2")
 
     def extract_uid(self, data):
         return UUID(bytes_le=data['ppid'].decode("base64")).__str__()
