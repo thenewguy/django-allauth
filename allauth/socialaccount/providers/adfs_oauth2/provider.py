@@ -17,7 +17,9 @@ class ADFSOAuth2Provider(OAuth2Provider):
         return self.get_settings().get("name", "ADFS Oauth2")
 
     def extract_uid(self, data):
-        return UUID(bytes_le=data['ppid'].decode("base64")).__str__()
+        raw = data.get('ppid').decode("base64")
+        uid = UUID(bytes_le=raw)
+        return unicode(uid)
 
     def extract_common_fields(self, data):
         return dict(
