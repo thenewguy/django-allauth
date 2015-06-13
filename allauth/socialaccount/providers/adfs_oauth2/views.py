@@ -40,7 +40,7 @@ class ADFSOAuth2Adapter(OAuth2Adapter):
         """
         return self.get_required_setting("host")
     
-    def construct_redirect_url(self, path):
+    def construct_adfs_url(self, path):
         parts = (
             self.scheme,
             self.host,
@@ -52,15 +52,15 @@ class ADFSOAuth2Adapter(OAuth2Adapter):
     
     @property
     def access_token_url(self):
-        return self.construct_redirect_url("/adfs/oauth2/token")
+        return self.construct_adfs_url("/adfs/oauth2/token")
     
     @property
     def authorize_url(self):
-        return self.construct_redirect_url("/adfs/oauth2/authorize")
+        return self.construct_adfs_url("/adfs/oauth2/authorize")
     
     @property
     def federation_metadata_url(self):
-        return self.construct_redirect_url("/FederationMetadata/2007-06/FederationMetadata.xml")
+        return self.construct_adfs_url("/FederationMetadata/2007-06/FederationMetadata.xml")
     
     @property
     def federation_metadata_xml(self):
