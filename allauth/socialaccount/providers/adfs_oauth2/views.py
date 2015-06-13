@@ -25,7 +25,6 @@ from .compat import caches, DEFAULT_CACHE_ALIAS
 
 class ADFSOAuth2Adapter(OAuth2Adapter):
     provider_id = ADFSOAuth2Provider.id
-    scheme = "https"
     
     def get_setting(self, key, default="", required=True):
         value = self.get_provider().get_settings().get(key, default)
@@ -42,7 +41,7 @@ class ADFSOAuth2Adapter(OAuth2Adapter):
     
     def construct_adfs_url(self, path):
         parts = (
-            self.scheme,
+            "https",
             self.host,
             path,
             "",
