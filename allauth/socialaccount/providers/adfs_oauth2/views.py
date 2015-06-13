@@ -7,16 +7,21 @@ from urlparse import urlunsplit
 from .utils import decode_payload_segment, parse_token_payload_segment
 import requests
 from xml.dom.minidom import parseString
+from hashlib import md5
 
 try:
     import jwt
     from cryptography.x509 import load_der_x509_certificate
     from cryptography.hazmat.backends import default_backend
+    from cryptography.hazmat.primitives import serialization
 except ImportError:
     JWT_AVAILABLE = False
     import json
 else:
     JWT_AVAILABLE = True
+
+from .compat import caches, DEFAULT_CACHE_ALIAS
+    
 
 class ADFSOAuth2Adapter(OAuth2Adapter):
     provider_id = ADFSOAuth2Provider.id
@@ -72,12 +77,35 @@ class ADFSOAuth2Adapter(OAuth2Adapter):
     
     @property
     def token_signature_key(self):
-        xml = self.federation_metadata_xml
-        signature = xml.getElementsByTagName("ds:Signature")[0]
-        cert_b64 = signature.getElementsByTagName("X509Certificate")[0].firstChild.nodeValue
-        cert_str = decode_payload_segment(cert_b64)
-        cert_obj = load_der_x509_certificate(cert_str, default_backend())
-        return cert_obj.public_key()
+        cache_alias = self.get_provider().get_settings().get("token_signature_key_cache_alias", DEFAULT_CACHE_ALIAS)
+        cache = caches[cache_alias]
+        cache_key = ":".join([
+            "allauth",
+            "ADFSOAuth2Adapter",
+            md5(self.federation_metadata_url).hexdigest(),
+            "token_signature_key",
+        ])
+        
+        pub = cache.get(cache_key)
+        
+        if pub is None:
+            xml = self.federation_metadata_xml
+            
+            signature = xml.getElementsByTagName("ds:Signature")[0]
+            cert_b64 = signature.getElementsByTagName("X509Certificate")[0].firstChild.nodeValue
+            
+            cert_str = decode_payload_segment(cert_b64)
+            cert_obj = load_der_x509_certificate(cert_str, default_backend())
+            
+            pub = cert_obj.public_key().public_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PublicFormat.SubjectPublicKeyInfo,
+            )
+             
+            timeout = self.get_provider().get_settings().get("token_signature_key_cache_timeout", 0)
+            cache.set(cache_key, pub, timeout)
+        
+        return pub
 
     def complete_login(self, request, app, token, **kwargs):
         verify_token = self.get_provider().get_settings().get("verify_token", True)
