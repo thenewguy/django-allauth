@@ -5,9 +5,13 @@ from django.core.exceptions import ImproperlyConfigured
 from .provider import ADFSOAuth2Provider
 from urlparse import urlunsplit
 from .utils import decode_payload_segment, parse_token_payload_segment
+import requests
+from xml.dom.minidom import parseString
 
 try:
     import jwt
+    from cryptography.x509 import load_der_x509_certificate
+    from cryptography.hazmat.backends import default_backend
 except ImportError:
     JWT_AVAILABLE = False
     import json
@@ -48,6 +52,32 @@ class ADFSOAuth2Adapter(OAuth2Adapter):
     @property
     def authorize_url(self):
         return self.construct_redirect_url("/adfs/oauth2/authorize")
+    
+    @property
+    def federation_metadata_url(self):
+        return self.construct_redirect_url("/FederationMetadata/2007-06/FederationMetadata.xml")
+    
+    @property
+    def federation_metadata_xml(self):
+        response = requests.get(self.federation_metadata_url)
+        
+        if response.status_code == 200:
+            data = response.content
+        else:
+            raise RuntimeError("Could not retreive federation metadata")
+        
+        xml = parseString(data)
+        
+        return xml
+    
+    @property
+    def token_signature_key(self):
+        xml = self.federation_metadata_xml
+        signature = xml.getElementsByTagName("ds:Signature")[0]
+        cert_b64 = signature.getElementsByTagName("X509Certificate")[0].firstChild.nodeValue
+        cert_str = decode_payload_segment(cert_b64)
+        cert_obj = load_der_x509_certificate(cert_str, default_backend())
+        return cert_obj.public_key()
 
     def complete_login(self, request, app, token, **kwargs):
         verify_token = self.get_provider().get_settings().get("verify_token", True)
@@ -55,10 +85,6 @@ class ADFSOAuth2Adapter(OAuth2Adapter):
         if JWT_AVAILABLE:
             kwargs = {"verify": verify_token}
             if verify_token:
-                # the signature is assumed to be valid because the
-                # token was retrieved directly from adfs via https
-                kwargs["options"] = {'verify_signature': False}
-                
                 auth_params = self.get_required_setting("AUTH_PARAMS")
                 
                 try:
@@ -67,6 +93,8 @@ class ADFSOAuth2Adapter(OAuth2Adapter):
                     raise ImproperlyConfigured("ADFS OAuth2 AUTH_PARAMS setting 'resource' must be specified.")
                 
                 kwargs["leeway"] = self.get_provider().get_settings().get("time_validation_leeway", 0)
+                
+                kwargs["key"] = self.token_signature_key
                 
             payload = jwt.decode(token.token, **kwargs)
             
