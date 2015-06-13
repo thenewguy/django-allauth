@@ -27,10 +27,10 @@ class ADFSOAuth2Adapter(OAuth2Adapter):
     provider_id = ADFSOAuth2Provider.id
     scheme = "https"
     
-    def get_required_setting(self, key):
-        value = self.get_provider().get_settings().get(key, "")
-        if not value:
-            raise ImproperlyConfigured("ADFS OAuth2 provider setting '%s' must be specified." % key)
+    def get_setting(self, key, default="", required=True):
+        value = self.get_provider().get_settings().get(key, default)
+        if not value and required:
+            raise ImproperlyConfigured("ADFS OAuth2 provider setting '%s' is required.  It must not be falsey." % key)
         return value
     
     @property
@@ -38,7 +38,7 @@ class ADFSOAuth2Adapter(OAuth2Adapter):
         """
             e.g. sso.internal.example.com or sso.example.com:8443
         """
-        return self.get_required_setting("host")
+        return self.get_setting("host")
     
     def construct_adfs_url(self, path):
         parts = (
@@ -77,7 +77,7 @@ class ADFSOAuth2Adapter(OAuth2Adapter):
     
     @property
     def token_signature_key(self):
-        cache_alias = self.get_provider().get_settings().get("token_signature_key_cache_alias", DEFAULT_CACHE_ALIAS)
+        cache_alias = self.get_setting("token_signature_key_cache_alias", DEFAULT_CACHE_ALIAS)
         cache = caches[cache_alias]
         cache_key = ":".join([
             "allauth",
@@ -102,25 +102,25 @@ class ADFSOAuth2Adapter(OAuth2Adapter):
                 format=serialization.PublicFormat.SubjectPublicKeyInfo,
             )
              
-            timeout = self.get_provider().get_settings().get("token_signature_key_cache_timeout", 0)
+            timeout = self.get_setting("token_signature_key_cache_timeout", 0, required=False)
             cache.set(cache_key, pub, timeout)
         
         return pub
 
     def complete_login(self, request, app, token, **kwargs):
-        verify_token = self.get_provider().get_settings().get("verify_token", True)
+        verify_token = self.get_setting("verify_token", True, required=False)
         
         if JWT_AVAILABLE:
             kwargs = {"verify": verify_token}
             if verify_token:
-                auth_params = self.get_required_setting("AUTH_PARAMS")
+                auth_params = self.get_setting("AUTH_PARAMS")
                 
                 try:
                     kwargs["audience"] = "microsoft:identityserver:%s" % auth_params["resource"]
                 except KeyError:
                     raise ImproperlyConfigured("ADFS OAuth2 AUTH_PARAMS setting 'resource' must be specified.")
                 
-                kwargs["leeway"] = self.get_provider().get_settings().get("time_validation_leeway", 0)
+                kwargs["leeway"] = self.get_setting("time_validation_leeway", 0, required=False)
                 
                 kwargs["key"] = self.token_signature_key
                 
