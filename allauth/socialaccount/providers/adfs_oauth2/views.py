@@ -128,7 +128,7 @@ class ADFSOAuth2Adapter(OAuth2Adapter):
             
         else:
             if verify_token:
-                raise ImproperlyConfigured("ADFS OAuth2 cannot verify tokens without the `PyJWT` package.")
+                raise ImproperlyConfigured("ADFS OAuth2 cannot verify tokens without the `PyJWT` and `cryptography` packages.  They can both be installed with pip.  The `cryptography` package requires development headers for python and libffi.  They can be installed with 'apt-get install python-dev libffi-dev' on Ubuntu Linux.  You can disable token verification by setting 'verify_token' to False under the 'adfs_oauth2' socialaccount provider configuration dictionary in `settings.py`.  IT IS NOT RECOMMENDED TO DISABLE TOKEN VERIFICATION IN PRODUCTION!")
             
             encoded_data = parse_token_payload_segment(token.token)
             data = decode_payload_segment(encoded_data)
